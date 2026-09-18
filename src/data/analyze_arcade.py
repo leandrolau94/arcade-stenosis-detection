@@ -2,9 +2,9 @@ import json
 import os
 from collections import Counter, defaultdict
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 BASE_DIR = "arcade/stenosis"
 SPLIT = "train"
@@ -18,7 +18,7 @@ print("=" * 60)
 print(" ANÁLISIS ARCADE - STENOSIS")
 print("=" * 60)
 
-with open(ANNOTATIONS_FILE, "r", encoding="utf-8") as f:
+with open(ANNOTATIONS_FILE, encoding="utf-8") as f:
     data = json.load(f)
 
 images = data["images"]
@@ -33,12 +33,11 @@ for ann in stenosis:
     annotations_by_image[ann["image_id"]].append(ann)
 
 # 1) Número de lesiones por imagen
-counts = Counter(
-    len(annotations_by_image.get(im["id"], []))
-    for im in images
-)
+counts = Counter(len(annotations_by_image.get(im["id"], [])) for im in images)
 
-images_with_stenosis = sum(n > 0 for n in (len(annotations_by_image.get(im["id"], [])) for im in images))
+images_with_stenosis = sum(
+    n > 0 for n in (len(annotations_by_image.get(im["id"], [])) for im in images)
+)
 
 print(f"Imágenes totales: {len(images)}")
 print(f"Anotaciones totales: {len(annotations)}")
@@ -54,20 +53,22 @@ for n in sorted(counts):
 rows = []
 for ann in stenosis:
     x, y, w, h = ann["bbox"]
-    rows.append({
-        "image_id": ann["image_id"],
-        "file_name": images_by_id[ann["image_id"]]["file_name"],
-        "annotation_id": ann["id"],
-        "x": x,
-        "y": y,
-        "width": w,
-        "height": h,
-        "bbox_area": w * h,
-        "center_x": x + w / 2,
-        "center_y": y + h / 2,
-        "segmentation_area": ann.get("area", np.nan),
-        "occluded": ann.get("attributes", {}).get("occluded", False),
-    })
+    rows.append(
+        {
+            "image_id": ann["image_id"],
+            "file_name": images_by_id[ann["image_id"]]["file_name"],
+            "annotation_id": ann["id"],
+            "x": x,
+            "y": y,
+            "width": w,
+            "height": h,
+            "bbox_area": w * h,
+            "center_x": x + w / 2,
+            "center_y": y + h / 2,
+            "segmentation_area": ann.get("area", np.nan),
+            "occluded": ann.get("attributes", {}).get("occluded", False),
+        }
+    )
 
 df = pd.DataFrame(rows)
 
@@ -81,8 +82,14 @@ for col in ["width", "height", "bbox_area"]:
     )
 
 print("\nPOSICIÓN")
-print(f"  centro X: media={df.center_x.mean():.2f}, rango={df.center_x.min():.2f}-{df.center_x.max():.2f}")
-print(f"  centro Y: media={df.center_y.mean():.2f}, rango={df.center_y.min():.2f}-{df.center_y.max():.2f}")
+print(
+    f"  centro X: media={df.center_x.mean():.2f}, "
+    f"rango={df.center_x.min():.2f}-{df.center_x.max():.2f}"
+)
+print(
+    f"  centro Y: media={df.center_y.mean():.2f}, "
+    f"rango={df.center_y.min():.2f}-{df.center_y.max():.2f}"
+)
 
 # 3) Segmentaciones
 polygon_points = []
@@ -94,26 +101,35 @@ for ann in stenosis:
 print("\nSEGMENTACIONES")
 print(f"  polígonos: {len(polygon_points)}")
 if polygon_points:
-    print(f"  puntos por polígono: min={min(polygon_points)}, "f"media={np.mean(polygon_points):.2f}, max={max(polygon_points)}")
+    print(
+        f"  puntos por polígono: min={min(polygon_points)}, "
+        f"media={np.mean(polygon_points):.2f}, max={max(polygon_points)}"
+    )
 
 # 4) Guardar tablas
-df.to_csv(
-    os.path.join(OUTPUT_DIR, "estenosis_detalle.csv"),
-    index=False
-)
+df.to_csv(os.path.join(OUTPUT_DIR, "estenosis_detalle.csv"), index=False)
 
-summary = pd.DataFrame([
-    ["total_images", len(images)],
-    ["total_annotations", len(annotations)],
-    ["stenosis_annotations", len(stenosis)],
-    ["images_with_stenosis", images_with_stenosis],
-    ["images_without_stenosis", len(images) - images_with_stenosis],
-    ["mean_stenoses_per_image", np.mean([len(annotations_by_image.get(im["id"], [])) for im in images])],
-    ["median_stenoses_per_image", np.median([len(annotations_by_image.get(im["id"], [])) for im in images])],
-    ["mean_bbox_width", df.width.mean()],
-    ["mean_bbox_height", df.height.mean()],
-    ["mean_bbox_area", df.bbox_area.mean()],
-], columns=["metric", "value"])
+summary = pd.DataFrame(
+    [
+        ["total_images", len(images)],
+        ["total_annotations", len(annotations)],
+        ["stenosis_annotations", len(stenosis)],
+        ["images_with_stenosis", images_with_stenosis],
+        ["images_without_stenosis", len(images) - images_with_stenosis],
+        [
+            "mean_stenoses_per_image",
+            np.mean([len(annotations_by_image.get(im["id"], [])) for im in images]),
+        ],
+        [
+            "median_stenoses_per_image",
+            np.median([len(annotations_by_image.get(im["id"], [])) for im in images]),
+        ],
+        ["mean_bbox_width", df.width.mean()],
+        ["mean_bbox_height", df.height.mean()],
+        ["mean_bbox_area", df.bbox_area.mean()],
+    ],
+    columns=["metric", "value"],
+)
 
 summary.to_csv(os.path.join(OUTPUT_DIR, "resumen.csv"), index=False)
 

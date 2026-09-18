@@ -8,19 +8,18 @@ os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
 
 from pyspark.sql import SparkSession
 
-
 # ============================================================
 # CONFIGURACIÓN
 # ============================================================
 
-PARQUET_PATH = (Path.home() / "arcade-spark-data" / "stenosis_features")
+PARQUET_PATH = Path.home() / "arcade-spark-data" / "stenosis_features"
 
 
 # ============================================================
 # CREAR SPARK SESSION
 # ============================================================
 
-spark = (SparkSession.builder.appName("ARCADE-Spark-SQL").master("local[*]").getOrCreate())
+spark = SparkSession.builder.appName("ARCADE-Spark-SQL").master("local[*]").getOrCreate()
 
 print(f"Spark version: {spark.version}")
 print(f"Leyendo Parquet desde: {PARQUET_PATH}")
@@ -51,13 +50,27 @@ print("✓ Vista SQL 'stenosis' creada")
 
 print("\n=== PRIMERA CONSULTA SQL ===")
 
-result = spark.sql("""SELECT annotation_id, image_id, area, lesion_width, lesion_height, aspect_ratio, relative_area FROM stenosis LIMIT 10""")
+result = spark.sql(
+    """
+    SELECT annotation_id, image_id, area, lesion_width,
+    lesion_height, aspect_ratio, relative_area
+    FROM stenosis
+    LIMIT 10
+    """
+)
 
 result.show(truncate=False)
 
 print("\n=== ESTENOSIS POR IMAGEN ===")
 
-result1 = spark.sql("""SELECT image_id, COUNT(*) AS num_stenoses FROM stenosis GROUP BY image_id ORDER BY num_stenoses DESC""")
+result1 = spark.sql(
+    """
+    SELECT image_id, COUNT(*) AS num_stenoses
+    FROM stenosis
+    GROUP BY image_id
+    ORDER BY num_stenoses DESC
+    """
+)
 
 result1.show(20, truncate=False)
 
@@ -136,17 +149,11 @@ print(f"\nNúmero de imágenes con estenosis: {result4.count()}")
 # 6. EXPORTAR A PARQUET
 # ============================================================
 
-OUTPUT_IMAGE_STATS = (
-    Path.home()
-    / "arcade-spark-data"
-    / "image_statistics"
-)
+OUTPUT_IMAGE_STATS = Path.home() / "arcade-spark-data" / "image_statistics"
 
-result4.write \
-    .mode("overwrite") \
-    .parquet(str(OUTPUT_IMAGE_STATS))
+result4.write.mode("overwrite").parquet(str(OUTPUT_IMAGE_STATS))
 
-print(f"\n✓ Dataset de estadísticas guardado en:")
+print("\n✓ Dataset de estadísticas guardado en:")
 print(OUTPUT_IMAGE_STATS)
 
 # ============================================================

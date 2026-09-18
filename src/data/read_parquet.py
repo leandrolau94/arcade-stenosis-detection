@@ -8,32 +8,20 @@ os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
 
 from pyspark.sql import SparkSession
 
-
 # ============================================================
 # CONFIGURACIÓN
 # ============================================================
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-PARQUET_PATH = (
-    PROJECT_ROOT
-    / "data"
-    / "processed"
-    / "spark"
-    / "stenosis_features"
-)
+PARQUET_PATH = PROJECT_ROOT / "data" / "processed" / "spark" / "stenosis_features"
 
 
 # ============================================================
 # SPARK
 # ============================================================
 
-spark = (
-    SparkSession.builder
-    .appName("ARCADE-Read-Parquet")
-    .master("local[*]")
-    .getOrCreate()
-)
+spark = SparkSession.builder.appName("ARCADE-Read-Parquet").master("local[*]").getOrCreate()
 
 print(f"Spark version: {spark.version}")
 print(f"Leyendo Parquet desde: {PARQUET_PATH}")
@@ -44,9 +32,7 @@ print(f"Leyendo Parquet desde: {PARQUET_PATH}")
 # ============================================================
 
 if not PARQUET_PATH.exists():
-    raise FileNotFoundError(
-        f"No se encontró el directorio Parquet: {PARQUET_PATH}"
-    )
+    raise FileNotFoundError(f"No se encontró el directorio Parquet: {PARQUET_PATH}")
 
 print("✓ Directorio Parquet encontrado")
 

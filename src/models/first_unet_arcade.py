@@ -1,15 +1,13 @@
-import os
 import json
+import os
 import random
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-import matplotlib.pyplot as plt
-
+from torch import nn
+from torch.utils.data import DataLoader, Dataset
 
 # ============================================================
 # CONFIGURACIÓN
@@ -18,9 +16,7 @@ import matplotlib.pyplot as plt
 BASE_DIR = "arcade/stenosis"
 SPLIT = "train"
 
-ANNOTATIONS_FILE = os.path.join(
-    BASE_DIR, SPLIT, "annotations", f"{SPLIT}.json"
-)
+ANNOTATIONS_FILE = os.path.join(BASE_DIR, SPLIT, "annotations", f"{SPLIT}.json")
 IMAGES_DIR = os.path.join(BASE_DIR, SPLIT, "images")
 
 STENOSIS_CATEGORY_ID = 26
@@ -36,38 +32,24 @@ SEED = 42
 # DATASET
 # ============================================================
 
-class ARCADEDataset(Dataset):
 
-    def __init__(
-        self,
-        annotations_file,
-        images_dir,
-        image_size=256,
-        stenosis_category_id=26
-    ):
+class ARCADEDataset(Dataset):
+    def __init__(self, annotations_file, images_dir, image_size=256, stenosis_category_id=26):
 
         self.images_dir = images_dir
         self.image_size = image_size
         self.stenosis_category_id = stenosis_category_id
 
-        with open(
-            annotations_file,
-            "r",
-            encoding="utf-8"
-        ) as f:
+        with open(annotations_file, encoding="utf-8") as f:
             data = json.load(f)
 
         self.images = data["images"]
 
-        self.images_by_id = {
-            image["id"]: image
-            for image in self.images
-        }
+        self.images_by_id = {image["id"]: image for image in self.images}
 
         self.annotations_by_image = {}
 
         for ann in data["annotations"]:
-
             if ann.get("category_id") != stenosis_category_id:
                 continue
 
@@ -78,51 +60,33 @@ class ARCADEDataset(Dataset):
 
             self.annotations_by_image[image_id].append(ann)
 
-        self.image_ids = [
-            image["id"]
-            for image in self.images
-        ]
-
+        self.image_ids = [image["id"] for image in self.images]
 
     def __len__(self):
         return len(self.image_ids)
 
-
     def create_mask(self, height, width, annotations):
 
-        mask = np.zeros(
-            (height, width),
-            dtype=np.uint8
-        )
+        mask = np.zeros((height, width), dtype=np.uint8)
 
         for ann in annotations:
-
             for polygon in ann.get("segmentation", []):
-
                 if len(polygon) < 6:
                     continue
 
                 points = np.array(
                     [
-                        [
-                            int(round(polygon[i])),
-                            int(round(polygon[i + 1]))
-                        ]
+                        [int(round(polygon[i])), int(round(polygon[i + 1]))]
                         for i in range(0, len(polygon), 2)
                     ],
-                    dtype=np.int32
+                    dtype=np.int32,
                 )
 
                 points = points.reshape((-1, 1, 2))
 
-                cv2.fillPoly(
-                    mask,
-                    [points],
-                    1
-                )
+                cv2.fillPoly(mask, [points], 1)
 
         return mask
-
 
     def __getitem__(self, index):
 
@@ -130,56 +94,33 @@ class ARCADEDataset(Dataset):
         info = self.images_by_id[image_id]
         file_name = info["file_name"]
 
-        path = os.path.join(
-            self.images_dir,
-            file_name
-        )
+        path = os.path.join(self.images_dir, file_name)
 
-        image = cv2.imread(
-            path,
-            cv2.IMREAD_GRAYSCALE
-        )
+        image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
 
         if image is None:
             raise FileNotFoundError(path)
 
         height, width = image.shape
 
-        annotations = self.annotations_by_image.get(
-            image_id,
-            []
-        )
+        annotations = self.annotations_by_image.get(image_id, [])
 
-        mask = self.create_mask(
-            height,
-            width,
-            annotations
-        )
+        mask = self.create_mask(height, width, annotations)
 
         # Imagen: interpolación bilineal
         image = cv2.resize(
-            image,
-            (self.image_size, self.image_size),
-            interpolation=cv2.INTER_LINEAR
+            image, (self.image_size, self.image_size), interpolation=cv2.INTER_LINEAR
         )
 
         # Máscara: SIEMPRE nearest neighbor.
         # No queremos crear valores intermedios en la máscara.
-        mask = cv2.resize(
-            mask,
-            (self.image_size, self.image_size),
-            interpolation=cv2.INTER_NEAREST
-        )
+        mask = cv2.resize(mask, (self.image_size, self.image_size), interpolation=cv2.INTER_NEAREST)
 
         image = image.astype(np.float32) / 255.0
 
-        image = torch.from_numpy(
-            image
-        ).unsqueeze(0)
+        image = torch.from_numpy(image).unsqueeze(0)
 
-        mask = torch.from_numpy(
-            mask.astype(np.float32)
-        ).unsqueeze(0)
+        mask = torch.from_numpy(mask.astype(np.float32)).unsqueeze(0)
 
         return image, mask, file_name
 
@@ -188,32 +129,20 @@ class ARCADEDataset(Dataset):
 # BLOQUE CONVOLUCIONAL
 # ============================================================
 
-class DoubleConv(nn.Module):
 
+class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
 
         super().__init__()
 
         self.block = nn.Sequential(
-            nn.Conv2d(
-                in_channels,
-                out_channels,
-                kernel_size=3,
-                padding=1
-            ),
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
-
-            nn.Conv2d(
-                out_channels,
-                out_channels,
-                kernel_size=3,
-                padding=1
-            ),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
         )
-
 
     def forward(self, x):
         return self.block(x)
@@ -223,8 +152,8 @@ class DoubleConv(nn.Module):
 # U-NET
 # ============================================================
 
-class UNet(nn.Module):
 
+class UNet(nn.Module):
     def __init__(self):
 
         super().__init__()
@@ -240,51 +169,22 @@ class UNet(nn.Module):
         self.bottleneck = DoubleConv(128, 256)
 
         # Decoder
-        self.up3 = nn.ConvTranspose2d(
-            256,
-            128,
-            kernel_size=2,
-            stride=2
-        )
+        self.up3 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
 
-        self.dec3 = DoubleConv(
-            256,
-            128
-        )
+        self.dec3 = DoubleConv(256, 128)
 
-        self.up2 = nn.ConvTranspose2d(
-            128,
-            64,
-            kernel_size=2,
-            stride=2
-        )
+        self.up2 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
 
-        self.dec2 = DoubleConv(
-            128,
-            64
-        )
+        self.dec2 = DoubleConv(128, 64)
 
-        self.up1 = nn.ConvTranspose2d(
-            64,
-            32,
-            kernel_size=2,
-            stride=2
-        )
+        self.up1 = nn.ConvTranspose2d(64, 32, kernel_size=2, stride=2)
 
-        self.dec1 = DoubleConv(
-            64,
-            32
-        )
+        self.dec1 = DoubleConv(64, 32)
 
         # Una salida:
         # 0 = fondo
         # 1 = estenosis
-        self.out = nn.Conv2d(
-            32,
-            1,
-            kernel_size=1
-        )
-
+        self.out = nn.Conv2d(32, 1, kernel_size=1)
 
     def forward(self, x):
 
@@ -294,21 +194,15 @@ class UNet(nn.Module):
 
         e1 = self.enc1(x)
 
-        e2 = self.enc2(
-            self.pool(e1)
-        )
+        e2 = self.enc2(self.pool(e1))
 
-        e3 = self.enc3(
-            self.pool(e2)
-        )
+        e3 = self.enc3(self.pool(e2))
 
         # -------------------------
         # Bottleneck
         # -------------------------
 
-        b = self.bottleneck(
-            self.pool(e3)
-        )
+        b = self.bottleneck(self.pool(e3))
 
         # -------------------------
         # Decoder
@@ -316,28 +210,19 @@ class UNet(nn.Module):
 
         d3 = self.up3(b)
 
-        d3 = torch.cat(
-            [d3, e3],
-            dim=1
-        )
+        d3 = torch.cat([d3, e3], dim=1)
 
         d3 = self.dec3(d3)
 
         d2 = self.up2(d3)
 
-        d2 = torch.cat(
-            [d2, e2],
-            dim=1
-        )
+        d2 = torch.cat([d2, e2], dim=1)
 
         d2 = self.dec2(d2)
 
         d1 = self.up1(d2)
 
-        d1 = torch.cat(
-            [d1, e1],
-            dim=1
-        )
+        d1 = torch.cat([d1, e1], dim=1)
 
         d1 = self.dec1(d1)
 
@@ -348,123 +233,59 @@ class UNet(nn.Module):
 # UTILIDADES
 # ============================================================
 
+
 def count_parameters(model):
 
-    return sum(
-        p.numel()
-        for p in model.parameters()
-        if p.requires_grad
-    )
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 def dice_score_from_logits(logits, targets):
 
     probabilities = torch.sigmoid(logits)
 
-    predictions = (
-        probabilities > 0.5
-    ).float()
+    predictions = (probabilities > 0.5).float()
 
-    predictions = predictions.reshape(
-        predictions.shape[0],
-        -1
-    )
+    predictions = predictions.reshape(predictions.shape[0], -1)
 
-    targets = targets.reshape(
-        targets.shape[0],
-        -1
-    )
+    targets = targets.reshape(targets.shape[0], -1)
 
-    intersection = (
-        predictions * targets
-    ).sum(dim=1)
+    intersection = (predictions * targets).sum(dim=1)
 
-    dice = (
-        2 * intersection + 1e-6
-    ) / (
-        predictions.sum(dim=1)
-        + targets.sum(dim=1)
-        + 1e-6
-    )
+    dice = (2 * intersection + 1e-6) / (predictions.sum(dim=1) + targets.sum(dim=1) + 1e-6)
 
     return dice.mean().item()
 
 
-def visualize_predictions(
-    images,
-    masks,
-    logits,
-    names
-):
+def visualize_predictions(images, masks, logits, names):
 
-    probabilities = torch.sigmoid(
-        logits
-    )
+    probabilities = torch.sigmoid(logits)
 
-    predictions = (
-        probabilities > 0.5
-    ).float()
+    predictions = (probabilities > 0.5).float()
 
     n = len(images)
 
-    fig, axes = plt.subplots(
-        n,
-        4,
-        figsize=(14, 4 * n)
-    )
+    fig, axes = plt.subplots(n, 4, figsize=(14, 4 * n))
 
     if n == 1:
-        axes = np.expand_dims(
-            axes,
-            axis=0
-        )
+        axes = np.expand_dims(axes, axis=0)
 
     for i in range(n):
-
         image = images[i, 0].cpu().numpy()
         mask = masks[i, 0].cpu().numpy()
         probability = probabilities[i, 0].detach().cpu().numpy()
         prediction = predictions[i, 0].cpu().numpy()
 
-        axes[i, 0].imshow(
-            image,
-            cmap="gray",
-            vmin=0,
-            vmax=1
-        )
-        axes[i, 0].set_title(
-            f"Original\n{names[i]}"
-        )
+        axes[i, 0].imshow(image, cmap="gray", vmin=0, vmax=1)
+        axes[i, 0].set_title(f"Original\n{names[i]}")
 
-        axes[i, 1].imshow(
-            mask,
-            cmap="gray",
-            vmin=0,
-            vmax=1
-        )
-        axes[i, 1].set_title(
-            "Ground Truth"
-        )
+        axes[i, 1].imshow(mask, cmap="gray", vmin=0, vmax=1)
+        axes[i, 1].set_title("Ground Truth")
 
-        axes[i, 2].imshow(
-            probability,
-            cmap="gray",
-            vmin=0,
-            vmax=1
-        )
-        axes[i, 2].set_title(
-            "Probabilidad predicha"
-        )
+        axes[i, 2].imshow(probability, cmap="gray", vmin=0, vmax=1)
+        axes[i, 2].set_title("Probabilidad predicha")
 
-        axes[i, 3].imshow(
-            prediction,
-            cmap="gray",
-            vmin=0,
-            vmax=1
-        )
-        axes[i, 3].set_title(
-            "Predicción > 0.5"
-        )
+        axes[i, 3].imshow(prediction, cmap="gray", vmin=0, vmax=1)
+        axes[i, 3].set_title("Predicción > 0.5")
 
         for ax in axes[i]:
             ax.axis("off")
@@ -478,7 +299,6 @@ def visualize_predictions(
 # ============================================================
 
 if __name__ == "__main__":
-
     print("=" * 70)
     print(" PRIMERA U-NET PARA ARCADE")
     print("=" * 70)
@@ -501,23 +321,16 @@ if __name__ == "__main__":
         annotations_file=ANNOTATIONS_FILE,
         images_dir=IMAGES_DIR,
         image_size=IMAGE_SIZE,
-        stenosis_category_id=STENOSIS_CATEGORY_ID
+        stenosis_category_id=STENOSIS_CATEGORY_ID,
     )
 
-    print(
-        f"Muestras: {len(dataset)}"
-    )
+    print(f"Muestras: {len(dataset)}")
 
     # -------------------------
     # DataLoader
     # -------------------------
 
-    loader = DataLoader(
-        dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
-        num_workers=NUM_WORKERS
-    )
+    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
 
     # -------------------------
     # Modelo
@@ -525,33 +338,22 @@ if __name__ == "__main__":
 
     model = UNet().to(device)
 
-    print(
-        f"Parámetros entrenables: "
-        f"{count_parameters(model):,}"
-    )
+    print(f"Parámetros entrenables: {count_parameters(model):,}")
 
     # -------------------------
     # Batch
     # -------------------------
 
-    images, masks, names = next(
-        iter(loader)
-    )
+    images, masks, names = next(iter(loader))
 
     images = images.to(device)
     masks = masks.to(device)
 
     print()
     print("BATCH")
-    print(
-        f"  imágenes: {tuple(images.shape)}"
-    )
-    print(
-        f"  máscaras: {tuple(masks.shape)}"
-    )
-    print(
-        f"  archivos: {list(names)}"
-    )
+    print(f"  imágenes: {tuple(images.shape)}")
+    print(f"  máscaras: {tuple(masks.shape)}")
+    print(f"  archivos: {list(names)}")
 
     # -------------------------
     # Forward pass
@@ -560,75 +362,41 @@ if __name__ == "__main__":
     model.eval()
 
     with torch.no_grad():
-
         logits = model(images)
 
     print()
     print("FORWARD PASS")
-    print(
-        f"  entrada: {tuple(images.shape)}"
-    )
-    print(
-        f"  salida:  {tuple(logits.shape)}"
-    )
-    print(
-        f"  logits min: {float(logits.min()):.4f}"
-    )
-    print(
-        f"  logits max: {float(logits.max()):.4f}"
-    )
+    print(f"  entrada: {tuple(images.shape)}")
+    print(f"  salida:  {tuple(logits.shape)}")
+    print(f"  logits min: {float(logits.min()):.4f}")
+    print(f"  logits max: {float(logits.max()):.4f}")
 
     # -------------------------
     # Probabilidades
     # -------------------------
 
-    probabilities = torch.sigmoid(
-        logits
-    )
+    probabilities = torch.sigmoid(logits)
 
-    print(
-        f"  probabilidad min: "
-        f"{float(probabilities.min()):.4f}"
-    )
+    print(f"  probabilidad min: {float(probabilities.min()):.4f}")
 
-    print(
-        f"  probabilidad max: "
-        f"{float(probabilities.max()):.4f}"
-    )
+    print(f"  probabilidad max: {float(probabilities.max()):.4f}")
 
     # -------------------------
     # Dice SIN ENTRENAR
     # -------------------------
 
-    dice = dice_score_from_logits(
-        logits,
-        masks
-    )
+    dice = dice_score_from_logits(logits, masks)
 
     print()
-    print(
-        f"Dice antes de entrenar: {dice:.4f}"
-    )
+    print(f"Dice antes de entrenar: {dice:.4f}")
 
     print()
-    print(
-        "IMPORTANTE: esta predicción es "
-        "ALEATORIA porque la U-Net todavía "
-        "NO ha sido entrenada."
-    )
+    print("IMPORTANTE: esta predicción es ALEATORIA porque la U-Net todavía NO ha sido entrenada.")
 
     print()
-    print(
-        "Mostrando original / ground truth / "
-        "probabilidad / predicción..."
-    )
+    print("Mostrando original / ground truth / probabilidad / predicción...")
 
-    visualize_predictions(
-        images,
-        masks,
-        logits,
-        names
-    )
+    visualize_predictions(images, masks, logits, names)
 
     print()
     print("=" * 70)

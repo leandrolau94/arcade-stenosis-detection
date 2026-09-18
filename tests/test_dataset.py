@@ -4,7 +4,6 @@ import torch
 
 from src.data.arcade_pytorch_dataset import ARCADEStenosisDataset
 
-
 PROJECT_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..")
 )

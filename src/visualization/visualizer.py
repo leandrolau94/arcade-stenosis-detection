@@ -1,10 +1,10 @@
 import json
 import os
 import random
-import cv2
-import numpy as np
-import matplotlib.pyplot as plt
 
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 
 # ============================================================
 # Set Up
@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 
 BASE_DIR = "arcade/stenosis"
 
-SPLIT = "train"          # train, val or test
-NUM_IMAGENES = 10        # how many random images to visualize
-SEED = 42                # to repeat same selection
+SPLIT = "train"  # train, val or test
+NUM_IMAGENES = 10  # how many random images to visualize
+SEED = 42  # to repeat same selection
 
 ANNOTATIONS_FILE = os.path.join(BASE_DIR, SPLIT, "annotations", f"{SPLIT}.json")
 
@@ -36,7 +36,7 @@ print(f"Split: {SPLIT}")
 print(f"JSON:  {ANNOTATIONS_FILE}")
 print()
 
-with open(ANNOTATIONS_FILE, "r", encoding="utf-8") as f:
+with open(ANNOTATIONS_FILE, encoding="utf-8") as f:
     data = json.load(f)
 
 images = data["images"]
@@ -108,9 +108,18 @@ for counter, image_id in enumerate(selected_ids, start=1):
             y1 = int(round(y))
             x2 = int(round(x + width))
             y2 = int(round(y + height))
-            cv2.rectangle(result, (x1, y1), (x2, y2), (255, 0, 0), 2) # rojo en RGB
+            cv2.rectangle(result, (x1, y1), (x2, y2), (255, 0, 0), 2)  # rojo en RGB
             # Number of injury
-            cv2.putText(result, f"Stenosis {ann_number}", (x1, max(20, y1 - 7)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 0, 0), 2, cv2.LINE_AA)
+            cv2.putText(
+                result,
+                f"Stenosis {ann_number}",
+                (x1, max(20, y1 - 7)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                (255, 0, 0),
+                2,
+                cv2.LINE_AA,
+            )
         # ==========================
         # Segmentation
         # ==========================
@@ -118,14 +127,20 @@ for counter, image_id in enumerate(selected_ids, start=1):
         for polygon in segmentations:
             if not polygon or len(polygon) < 6:
                 continue
-            points = np.array([[int(round(polygon[i])), int(round(polygon[i + 1]))] for i in range(0, len(polygon), 2)], dtype=np.int32)
+            points = np.array(
+                [
+                    [int(round(polygon[i])), int(round(polygon[i + 1]))]
+                    for i in range(0, len(polygon), 2)
+                ],
+                dtype=np.int32,
+            )
             points = points.reshape((-1, 1, 2))
-            cv2.polylines(result, [points], isClosed=True, color=(0, 255, 0), thickness=2) # verde
+            cv2.polylines(result, [points], isClosed=True, color=(0, 255, 0), thickness=2)  # verde
 
     # ========================================================
     # Showing Information
     # ========================================================
-    print(f"[{counter}/{num}] "f"{file_name} | "f"estenosis: {len(anns)}")
+    print(f"[{counter}/{num}] {file_name} | estenosis: {len(anns)}")
 
     # ========================================================
     # Saving
@@ -144,7 +159,7 @@ for counter, image_id in enumerate(selected_ids, start=1):
 
     plt.figure(figsize=(7, 7))
     plt.imshow(result)
-    plt.title(f"{file_name} | "f"{len(anns)} estenosis")
+    plt.title(f"{file_name} | {len(anns)} estenosis")
     plt.axis("off")
     plt.tight_layout()
     plt.show()

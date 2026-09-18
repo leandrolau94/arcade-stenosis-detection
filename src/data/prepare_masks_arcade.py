@@ -3,9 +3,8 @@ import os
 import random
 
 import cv2
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
 
 # ============================================================
 # CONFIGURACIÓN
@@ -13,7 +12,7 @@ import matplotlib.pyplot as plt
 
 BASE_DIR = "arcade/stenosis"
 
-SPLIT = "train"# train, val or test
+SPLIT = "train"  # train, val or test
 NUM_IMAGENES = 5
 SEED = 42
 
@@ -32,6 +31,7 @@ STENOSIS_CATEGORY_ID = 26
 # FUNCIONES
 # ============================================================
 
+
 def crear_mascara(image_height, image_width, annotations):
     """
     Crea una máscara binaria de 0/1.
@@ -47,7 +47,13 @@ def crear_mascara(image_height, image_width, annotations):
             # Necesitamos al menos 3 puntos = 6 coordenadas
             if not polygon or len(polygon) < 6:
                 continue
-            points = np.array([[int(round(polygon[i])), int(round(polygon[i + 1]))] for i in range(0, len(polygon), 2)], dtype=np.int32)
+            points = np.array(
+                [
+                    [int(round(polygon[i])), int(round(polygon[i + 1]))]
+                    for i in range(0, len(polygon), 2)
+                ],
+                dtype=np.int32,
+            )
             points = points.reshape((-1, 1, 2))
             # Rellenamos el polígono
             cv2.fillPoly(mask, [points], 1)
@@ -75,7 +81,7 @@ print("=" * 65)
 print(" PREPARACIÓN DE MÁSCARAS ARCADE - ESTENOSIS")
 print("=" * 65)
 
-with open(ANNOTATIONS_FILE, "r", encoding="utf-8") as f:
+with open(ANNOTATIONS_FILE, encoding="utf-8") as f:
     data = json.load(f)
 
 images = data["images"]
@@ -136,8 +142,13 @@ for counter, image_id in enumerate(selected_ids, start=1):
     # --------------------------------------------------------
     lesion_pixels = int(np.sum(mask))
     total_pixels = mask.size
-    percentage = (100 * lesion_pixels / total_pixels)
-    print(f"[{counter}/{num}] {file_name} | "f"estenosis: {len(anns)} | "f"píxeles de lesión: {lesion_pixels:,} | "f"{percentage:.3f}% de la imagen")
+    percentage = 100 * lesion_pixels / total_pixels
+    print(
+        f"[{counter}/{num}] {file_name} | "
+        f"estenosis: {len(anns)} | "
+        f"píxeles de lesión: {lesion_pixels:,} | "
+        f"{percentage:.3f}% de la imagen"
+    )
 
     # --------------------------------------------------------
     # GUARDAR MÁSCARA

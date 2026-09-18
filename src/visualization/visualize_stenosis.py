@@ -1,6 +1,7 @@
 import json
-import cv2
 import os
+
+import cv2
 
 # ============================================================
 # Set Up
@@ -23,7 +24,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 print("Uploading annotations...")
 
-with open(ANNOTATIONS_FILE, "r") as f:
+with open(ANNOTATIONS_FILE) as f:
     data = json.load(f)
 
 images = data["images"]
