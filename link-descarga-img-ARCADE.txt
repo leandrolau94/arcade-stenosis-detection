@@ -1,0 +1,3 @@
+https://zenodo.org/records/10390295?utm_source=chatgpt.com
+este es el link de descarga de la carpeta arcade para la base
+de datos de imagenes de test train val para el modelo
