@@ -12,7 +12,7 @@ from pyspark.sql.functions import coalesce, lit, col, when
 # ============================================================
 # 1. CONFIGURACIÓN
 # ============================================================
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TRAIN_JSON = (
     PROJECT_ROOT
     / "arcade"

@@ -7,9 +7,12 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
-ROOT = "arcade"
-CHECKPOINT = os.path.join("entrenamiento_unet", "mejor_unet_arcade.pt")
-OUT_DIR = "entrenamiento_continuado"
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+ROOT = os.path.join(PROJECT_ROOT, "arcade")
+CHECKPOINT = os.path.join(PROJECT_ROOT, "entrenamiento_unet", "mejor_unet_arcade.pt")
+OUT_DIR = os.path.join(PROJECT_ROOT, "entrenamiento_continuado")
+
 IMAGE_SIZE = 256
 BATCH_SIZE = 2
 START_EPOCH = 6

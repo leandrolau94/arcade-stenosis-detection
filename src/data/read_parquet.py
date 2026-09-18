@@ -13,7 +13,7 @@ from pyspark.sql import SparkSession
 # CONFIGURACIÓN
 # ============================================================
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 PARQUET_PATH = (
     PROJECT_ROOT

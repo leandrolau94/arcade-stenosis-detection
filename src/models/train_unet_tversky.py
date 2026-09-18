@@ -28,14 +28,13 @@ from torch.utils.data import Dataset, DataLoader
 # CONFIGURACIÓN
 # ============================================================
 
-ROOT = "arcade"
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-CHECKPOINT = os.path.join(
-    "entrenamiento_continuado",
-    "mejor_unet_arcade_continuado.pt"
-)
+ROOT = os.path.join(PROJECT_ROOT, "arcade")
 
-OUT_DIR = "entrenamiento_tversky"
+CHECKPOINT = os.path.join(PROJECT_ROOT, "entrenamiento_continuado", "mejor_unet_arcade_continuado.pt")
+
+OUT_DIR = os.path.join(PROJECT_ROOT, "entrenamiento_tversky")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 IMAGE_SIZE = 256
