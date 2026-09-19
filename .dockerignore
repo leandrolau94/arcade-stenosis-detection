@@ -1,0 +1,49 @@
+# Dataset
+arcade/
+
+# Generated / processed data
+data/processed/
+
+# Training outputs
+entrenamiento_unet/
+entrenamiento_continuado/
+entrenamiento_tversky/
+
+# Visualization outputs
+mascaras_visualizacion/
+resultados/
+resultados_visualizer/
+analisis_dataset/
+
+# Python virtual environments
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Test / coverage cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ruff cache
+.ruff_cache/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
